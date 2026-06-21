@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core Tax Sentiment</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; }
+        nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+        .nav-left { display: flex; align-items: center; gap: 10px; }
+        .nav-logo { font-size: 15px; font-weight: 600; color: #111827; }
+        .nav-badge { background: #eff6ff; color: #2563eb; font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 99px; border: 1px solid #bfdbfe; }
+        .nav-right { display: flex; gap: 4px; align-items: center; }
+        .nav-link { font-size: 13px; color: #6b7280; text-decoration: none; padding: 6px 12px; border-radius: 6px; }
+        .nav-link:hover { color: #111827; }
+        .nav-link.active { color: #111827; font-weight: 600; border-bottom: 2px solid #111827; }
+        .nav-auth { font-size: 12px; font-weight: 500; padding: 5px 12px; border-radius: 6px; text-decoration: none; }
+        .nav-auth.login  { background: #111827; color: #fff; }
+        .nav-auth.login:hover { background: #374151; }
+        .nav-auth.logout { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+        .nav-auth.logout:hover { background: #fee2e2; }
+        .nav-role { font-size: 11px; color: #6b7280; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 99px; padding: 3px 9px; }
+
+        .container { max-width: 640px; margin: 48px auto; padding: 0 20px; }
+        .page-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+        .page-sub   { font-size: 14px; color: #6b7280; margin-bottom: 28px; line-height: 1.5; }
+        .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 12px; }
+        .card-title { font-size: 14px; font-weight: 600; margin-bottom: 14px; color: #374151; }
+
+        /* Upload Zone */
+        .upload-zone { border: 2px dashed #d1d5db; border-radius: 10px; padding: 36px 24px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; }
+        .upload-zone:hover { border-color: #9ca3af; }
+        .upload-zone.drag-over { border-color: #2563eb; background: #eff6ff; }
+        .upload-icon { width: 44px; height: 44px; margin: 0 auto 16px; color: #9ca3af; }
+        .upload-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+        .upload-hint  { font-size: 13px; color: #9ca3af; margin-bottom: 18px; }
+        .btn-choose   { display: inline-block; padding: 8px 20px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-weight: 500; background: #fff; color: #374151; cursor: pointer; }
+        .btn-choose:hover { background: #f9fafb; }
+        input[type=file] { display: none; }
+        .file-name { font-size: 12px; color: #9ca3af; margin-top: 12px; min-height: 18px; }
+
+        .info-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .info-item  { display: flex; align-items: flex-start; gap: 7px; font-size: 13px; }
+        .info-check { color: #16a34a; flex-shrink: 0; }
+        .info-text code { font-family: 'SFMono-Regular', Consolas, monospace; background: #f3f4f6; color: #1f2937; padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+        .info-text span { color: #9ca3af; font-size: 12px; }
+
+        .action-row  { display: flex; align-items: center; gap: 14px; margin-top: 4px; }
+        .btn-submit  { display: flex; align-items: center; gap: 8px; padding: 10px 22px; background: #111827; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity .15s; }
+        .btn-submit:hover { opacity: .85; }
+        .action-hint { font-size: 12px; color: #9ca3af; }
+        .error { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #b91c1c; margin-bottom: 16px; }
+
+        /* History Table */
+        .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .section-title  { font-size: 15px; font-weight: 700; color: #111827; }
+        .section-sub    { font-size: 12px; color: #9ca3af; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        thead th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: #9ca3af; padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
+        tbody tr { border-bottom: 1px solid #f3f4f6; transition: background .12s; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: #f9fafb; }
+        tbody td { padding: 10px 10px; color: #374151; vertical-align: middle; }
+        .td-filename { font-weight: 500; color: #111827; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .badge { display: inline-block; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 99px; }
+        .b-neg { background: #fef2f2; color: #b91c1c; }
+        .b-net { background: #fefce8; color: #854d0e; }
+        .b-pos { background: #f0fdf4; color: #166534; }
+        .empty-state { text-align: center; padding: 32px; color: #9ca3af; font-size: 13px; }
+
+        /* ── Loading Overlay ── */
+        .loading-overlay { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(17,24,39,0.82); align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+        .loading-overlay.active { display: flex; }
+        .loading-card { background: #fff; border-radius: 16px; padding: 36px 40px; max-width: 500px; width: 92%; box-shadow: 0 24px 60px rgba(0,0,0,0.35); }
+        .loading-head { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+        .loading-spinner { width: 44px; height: 44px; border: 4px solid #e5e7eb; border-top-color: #111827; border-radius: 50%; animation: ld-spin 0.75s linear infinite; flex-shrink: 0; }
+        @keyframes ld-spin { to { transform: rotate(360deg); } }
+        .loading-title { font-size: 17px; font-weight: 700; color: #111827; margin-bottom: 2px; }
+        .loading-subtitle { font-size: 13px; color: #6b7280; }
+        .pbar-wrap { height: 6px; background: #f3f4f6; border-radius: 99px; margin-bottom: 6px; overflow: hidden; }
+        .pbar { height: 100%; background: linear-gradient(90deg, #1d4ed8, #111827); border-radius: 99px; width: 0%; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+        .pbar-label { font-size: 12px; color: #9ca3af; text-align: right; margin-bottom: 22px; }
+        .steps-list { display: flex; flex-direction: column; gap: 12px; }
+        .step-row { display: flex; align-items: flex-start; gap: 11px; opacity: 0.38; transition: opacity 0.3s; }
+        .step-row.s-active { opacity: 1; }
+        .step-row.s-done  { opacity: 0.68; }
+        .step-dot { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; transition: background 0.3s, color 0.3s; margin-top: 1px; background: #f3f4f6; color: #9ca3af; }
+        .step-row.s-active .step-dot { background: #111827; color: #fff; animation: ld-pulse 1.3s ease-in-out infinite; }
+        .step-row.s-done  .step-dot { background: #dcfce7; color: #16a34a; border: 1.5px solid #86efac; animation: none; }
+        @keyframes ld-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(17,24,39,.35)} 50%{box-shadow:0 0 0 7px rgba(17,24,39,0)} }
+        .step-name { font-size: 13px; font-weight: 500; color: #374151; line-height: 1.3; }
+        .step-row.s-active .step-name { color: #111827; font-weight: 600; }
+        .step-row.s-done  .step-name { color: #9ca3af; text-decoration: line-through; }
+        .step-desc { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+        .loading-foot { font-size: 12px; color: #9ca3af; text-align: center; margin-top: 22px; padding-top: 16px; border-top: 1px solid #f3f4f6; }
+        .loading-file { font-size: 12px; color: #2563eb; font-weight: 500; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 2px 8px; display: inline-block; margin-top: 8px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    </style>
+</head>
+<body>
+<nav>
+    <div class="nav-left">
+        <span class="nav-logo">Core Tax Sentiment</span>
+        <span class="nav-badge">DistilBERT + BERTopic</span>
+    </div>
+    <div class="nav-right">
+        <a href="/" class="nav-link active">Upload</a>
+        <a href="/sentimen" class="nav-link">Sentimen</a>
+        <a href="/bertopic" class="nav-link">BERTopic</a>
+        {% if is_admin %}
+        <span class="nav-role">Admin</span>
+        <a href="/logout" class="nav-auth logout">Logout</a>
+        {% else %}
+        <a href="/login" class="nav-auth login">Login Admin</a>
+        {% endif %}
+    </div>
+</nav>
+
+<div class="container">
+
+    {% if is_admin %}
+    <h1 class="page-title">Analisis Dataset Core Tax</h1>
+    <p class="page-sub">Upload file CSV hasil scraping tweet untuk dianalisis sentimen dan topiknya</p>
+
+    {% if error %}
+    <div class="error">⚠ {{ error }}</div>
+    {% endif %}
+
+    <form action="/analisis" method="POST" enctype="multipart/form-data" id="uploadForm">
+        <div class="card">
+            <div class="upload-zone" id="dropZone">
+                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"/>
+                </svg>
+                <p class="upload-title">Drag & drop file CSV di sini</p>
+                <p class="upload-hint">atau klik untuk pilih file</p>
+                <label class="btn-choose" for="file" onclick="event.stopPropagation()">Pilih File</label>
+                <input type="file" id="file" name="file" accept=".csv" required>
+                <p class="file-name" id="filename">Belum ada file dipilih</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <p class="card-title">Kolom yang dibutuhkan</p>
+            <div class="info-grid">
+                <div class="info-item"><span class="info-check">✓</span><div class="info-text"><code>full_text</code> <span>— isi tweet</span></div></div>
+                <div class="info-item"><span class="info-check">✓</span><div class="info-text"><code>periode</code> <span>— pra/sos/after</span></div></div>
+                <div class="info-item"><span class="info-check">✓</span><div class="info-text"><code>clean_text</code> <span>— teks bersih</span></div></div>
+                <div class="info-item"><span class="info-check">✓</span><div class="info-text"><code>created_at</code> <span>— tanggal tweet</span></div></div>
+            </div>
+        </div>
+
+        <div class="action-row">
+            <button type="submit" class="btn-submit">Analisis Sekarang ↗</button>
+            <span class="action-hint">Proses ±2 menit untuk 2600 tweet</span>
+        </div>
+    </form>
+    {% else %}
+    <h1 class="page-title">Core Tax Sentiment</h1>
+    <p class="page-sub">Transparansi data analisis sentimen tweet seputar Core Tax (DJP). Publik dapat melihat histori upload yang telah dilakukan admin.</p>
+    {% endif %}
+
+    <!-- UPLOAD HISTORY — visible to everyone -->
+    <div class="card" style="margin-top: 32px;">
+        <div class="section-header">
+            <span class="section-title">Histori Upload</span>
+            <span class="section-sub">Total akumulasi data</span>
+        </div>
+        {% if uploads %}
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Nama File</th>
+                    <th>Tanggal Upload</th>
+                    <th>Total Tweet</th>
+                    <th>Negatif</th>
+                    <th>Netral</th>
+                    <th>Positif</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in uploads %}
+                <tr>
+                    <td style="color:#9ca3af;">{{ loop.index }}</td>
+                    <td class="td-filename" title="{{ u.filename }}">{{ u.filename }}</td>
+                    <td>{{ u.uploaded_at }}</td>
+                    <td><strong>{{ u.total_tweets }}</strong></td>
+                    <td><span class="badge b-neg">{{ u.neg_count or 0 }}</span></td>
+                    <td><span class="badge b-net">{{ u.net_count or 0 }}</span></td>
+                    <td><span class="badge b-pos">{{ u.pos_count or 0 }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">Belum ada data yang diupload.</div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- ── LOADING OVERLAY ── -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-card">
+        <div class="loading-head">
+            <div class="loading-spinner" id="mainSpinner"></div>
+            <div>
+                <div class="loading-title">Sedang Memproses Dataset</div>
+                <div class="loading-subtitle">Mohon tunggu, jangan tutup atau reload halaman ini</div>
+            </div>
+        </div>
+
+        <div class="pbar-wrap"><div class="pbar" id="pbar"></div></div>
+        <div class="pbar-label" id="pbarLabel">0% &nbsp;·&nbsp; menginisialisasi…</div>
+
+        <div class="steps-list">
+            <div class="step-row" id="srow1">
+                <div class="step-dot" id="sdot1">1</div>
+                <div><div class="step-name">Membaca file CSV</div><div class="step-desc">Validasi kolom dan baris dataset</div></div>
+            </div>
+            <div class="step-row" id="srow2">
+                <div class="step-dot" id="sdot2">2</div>
+                <div><div class="step-name">Memuat model DistilBERT</div><div class="step-desc">Inisialisasi tokenizer &amp; weights model</div></div>
+            </div>
+            <div class="step-row" id="srow3">
+                <div class="step-dot" id="sdot3">3</div>
+                <div><div class="step-name">Prediksi sentimen tweet</div><div class="step-desc">Inferensi batch per batch ~2600 tweet</div></div>
+            </div>
+            <div class="step-row" id="srow4">
+                <div class="step-dot" id="sdot4">4</div>
+                <div><div class="step-name">Analisis topik BERTopic</div><div class="step-desc">Clustering &amp; ekstrasi kata kunci per periode</div></div>
+            </div>
+            <div class="step-row" id="srow5">
+                <div class="step-dot" id="sdot5">5</div>
+                <div><div class="step-name">Menyimpan ke database</div><div class="step-desc">Simpan tweet &amp; hasil BERTopic ke SQLite</div></div>
+            </div>
+        </div>
+
+        <div class="loading-foot">
+            Estimasi waktu ±2 menit untuk 2600 tweet<br>
+            <span class="loading-file" id="loadingFile"></span>
+        </div>
+    </div>
+</div>
+
+<script>
+    {% if is_admin %}
+    const dropZone  = document.getElementById('dropZone');
+    const fileInput = document.getElementById('file');
+    const fnLabel   = document.getElementById('filename');
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+        fnLabel.textContent = fileInput.files[0] ? fileInput.files[0].name : 'Belum ada file dipilih';
+    });
+    dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('drag-over'); });
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault(); dropZone.classList.remove('drag-over');
+        var f = e.dataTransfer.files[0];
+        if (f && f.name.endsWith('.csv')) {
+            var dt = new DataTransfer(); dt.items.add(f);
+            fileInput.files = dt.files; fnLabel.textContent = f.name;
+        }
+    });
+
+    /* ── Loading animation on form submit ── */
+    document.getElementById('uploadForm').addEventListener('submit', function() {
+        // Show overlay
+        var overlay = document.getElementById('loadingOverlay');
+        overlay.classList.add('active');
+
+        // Show filename in overlay
+        var fName = fileInput.files[0] ? fileInput.files[0].name : '';
+        var lf = document.getElementById('loadingFile');
+        if (fName) lf.textContent = '📄 ' + fName;
+        else lf.style.display = 'none';
+
+        // Disable button to prevent double-submit
+        document.querySelector('.btn-submit').disabled = true;
+
+        // ── Step timings (seconds): [activateAt, completeAt]
+        // Calibrated for ~2600 tweets with DistilBERT batch inference
+        var steps = [
+            { row: 'srow1', dot: 'sdot1', activeSec: 0,   doneSec: 2   },   // Read CSV
+            { row: 'srow2', dot: 'sdot2', activeSec: 2,   doneSec: 6   },   // Load model
+            { row: 'srow3', dot: 'sdot3', activeSec: 6,   doneSec: 100 },   // Predict sentiment
+            { row: 'srow4', dot: 'sdot4', activeSec: 100, doneSec: 130 },   // BERTopic
+            { row: 'srow5', dot: 'sdot5', activeSec: 130, doneSec: 145 },   // Save DB
+        ];
+
+        // Progress bar keyframes: [atSec, percent, label]
+        var pbKF = [
+            [0,   0,  'menginisialisasi…'],
+            [2,   5,  'membaca dataset CSV…'],
+            [6,   12, 'memuat model DistilBERT…'],
+            [30,  30, 'memprediksi sentimen…'],
+            [60,  52, 'memprediksi sentimen…'],
+            [90,  70, 'hampir selesai inferensi…'],
+            [100, 76, 'menjalankan BERTopic…'],
+            [115, 85, 'menjalankan BERTopic…'],
+            [130, 91, 'menyimpan ke database…'],
+            [145, 99, 'menyimpan ke database…'],
+        ];
+
+        function setStep(s, state) {
+            var row = document.getElementById(s.row);
+            var dot = document.getElementById(s.dot);
+            row.className = 'step-row' + (state === 'active' ? ' s-active' : state === 'done' ? ' s-done' : '');
+            dot.textContent = state === 'done' ? '✓' : dot.textContent;
+        }
+
+        var startMs = Date.now();
+        var totalMs = 145000;
+
+        // Schedule step transitions
+        steps.forEach(function(s) {
+            if (s.activeSec === 0) { setStep(s, 'active'); }
+            else { setTimeout(function() { setStep(s, 'active'); }, s.activeSec * 1000); }
+            setTimeout(function() { setStep(s, 'done'); }, s.doneSec * 1000);
+        });
+
+        // Animate progress bar using keyframe interpolation
+        var pbar = document.getElementById('pbar');
+        var pbarLabel = document.getElementById('pbarLabel');
+
+        function lerp(a, b, t) { return a + (b - a) * t; }
+
+        function getKFValue(elapsedSec) {
+            if (elapsedSec <= pbKF[0][0]) return { pct: pbKF[0][1], lbl: pbKF[0][2] };
+            for (var i = 1; i < pbKF.length; i++) {
+                if (elapsedSec <= pbKF[i][0]) {
+                    var t = (elapsedSec - pbKF[i-1][0]) / (pbKF[i][0] - pbKF[i-1][0]);
+                    var pct = lerp(pbKF[i-1][1], pbKF[i][1], t);
+                    return { pct: pct, lbl: pbKF[i][2] };
+                }
+            }
+            return { pct: 99, lbl: pbKF[pbKF.length-1][2] };
+        }
+
+        function tick() {
+            var elapsed = (Date.now() - startMs) / 1000;
+            var kf = getKFValue(elapsed);
+            pbar.style.width = kf.pct.toFixed(1) + '%';
+            pbarLabel.textContent = Math.floor(kf.pct) + '% · ' + kf.lbl;
+            if (kf.pct < 99) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    });
+    {% endif %}
+</script>
+</body>
+</html>

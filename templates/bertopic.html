@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BERTopic - Core Tax</title>
+    <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; }
+        nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+        .nav-left { display: flex; align-items: center; gap: 10px; }
+        .nav-logo { font-size: 15px; font-weight: 600; }
+        .nav-badge { background: #eff6ff; color: #2563eb; font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 99px; border: 1px solid #bfdbfe; }
+        .nav-right { display: flex; gap: 4px; }
+        .nav-link { font-size: 13px; color: #6b7280; text-decoration: none; padding: 6px 12px; border-radius: 6px; }
+        .nav-link:hover { color: #111827; }
+        .nav-link.active { color: #111827; font-weight: 600; border-bottom: 2px solid #111827; }
+
+        .container { max-width: 920px; margin: 32px auto; padding: 0 20px 40px; }
+        .page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+        .page-sub { font-size: 13px; color: #6b7280; margin-bottom: 24px; }
+
+        /* Period tabs */
+        .period-tabs { display: flex; gap: 6px; margin-bottom: 20px; }
+        .ptab { padding: 7px 18px; border-radius: 99px; font-size: 13px; font-weight: 500; border: 1px solid #e5e7eb; background: #fff; color: #6b7280; cursor: pointer; transition: all .15s; }
+        .ptab:hover { border-color: #9ca3af; color: #374151; }
+        .ptab.active { background: #111827; color: #fff; border-color: #111827; }
+        .period-section { display: none; }
+        .period-section.active { display: block; }
+
+        /* Stat cards */
+        .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+        .stat-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px 20px; }
+        .stat-label { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+        .stat-val { font-size: 28px; font-weight: 700; line-height: 1; }
+        .c-neg { color: #dc2626; }
+        .c-pos { color: #16a34a; }
+        .c-net { color: #d97706; }
+
+        /* Generic card */
+        .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 14px; }
+        .card-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .card-title { font-size: 13px; font-weight: 600; color: #374151; }
+
+        /* Sentiment legend */
+        .sent-legend { display: flex; gap: 12px; }
+        .leg-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #6b7280; }
+        .leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+        /* Topic bar chart */
+        .topic-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .topic-row:last-child { margin-bottom: 0; }
+        .topic-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+        .topic-name { font-size: 13px; color: #374151; width: 150px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .topic-bar-wrap { flex: 1; height: 10px; background: #f3f4f6; border-radius: 99px; overflow: hidden; }
+        .topic-bar { height: 100%; border-radius: 99px; }
+        .bar-neg { background: #f87171; }
+        .bar-pos { background: #4ade80; }
+        .bar-net { background: #fbbf24; }
+        .topic-count { font-size: 12px; color: #9ca3af; font-weight: 500; width: 30px; text-align: right; flex-shrink: 0; }
+
+        /* Kata kunci per topik — grouped by sentiment */
+        .sent-group { margin-bottom: 18px; }
+        .sent-group:last-child { margin-bottom: 0; }
+        .sent-group-header { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; padding: 6px 10px; border-radius: 7px; margin-bottom: 10px; }
+        .sgh-neg { background: #fef2f2; color: #b91c1c; }
+        .sgh-net { background: #fffbeb; color: #b45309; }
+        .sgh-pos { background: #f0fdf4; color: #15803d; }
+        .sgh-count { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 99px; }
+        .sgh-neg .sgh-count { background: #fca5a5; color: #7f1d1d; }
+        .sgh-net .sgh-count { background: #fde68a; color: #78350f; }
+        .sgh-pos .sgh-count { background: #86efac; color: #14532d; }
+
+        .topic-kw-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; }
+        .topic-kw-card:last-child { margin-bottom: 0; }
+        .tkc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .tkc-num { font-size: 11px; font-weight: 600; color: #9ca3af; background: #f3f4f6; padding: 2px 7px; border-radius: 4px; }
+        .tkc-label { font-size: 13px; font-weight: 600; color: #111827; }
+        .tkc-count { font-size: 11px; color: #9ca3af; margin-left: auto; }
+        .kw-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+        .kw { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 12px; }
+        .kw-neg { background: #fef2f2; color: #b91c1c; }
+        .kw-net { background: #fffbeb; color: #b45309; }
+        .kw-pos { background: #f0fdf4; color: #15803d; }
+
+        /* Faktor kepuasan — 3 boxes */
+        .factors-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .factor-box { border-radius: 10px; padding: 16px; }
+        .factor-sent-badge { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; padding: 3px 9px; border-radius: 99px; margin-bottom: 8px; }
+        .factor-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+        .factor-desc { font-size: 12px; line-height: 1.6; }
+        .factor-count { font-size: 11px; margin-top: 8px; opacity: .7; }
+        .fn { background: #fef2f2; border: 1px solid #fca5a5; }
+        .fn .factor-sent-badge { background: #fca5a5; color: #7f1d1d; }
+        .fn .factor-title { color: #b91c1c; }
+        .fn .factor-desc { color: #ef4444; }
+        .fn .factor-count { color: #b91c1c; }
+        .fo { background: #fffbeb; border: 1px solid #fde68a; }
+        .fo .factor-sent-badge { background: #fde68a; color: #78350f; }
+        .fo .factor-title { color: #b45309; }
+        .fo .factor-desc { color: #d97706; }
+        .fo .factor-count { color: #b45309; }
+        .fp { background: #f0fdf4; border: 1px solid #86efac; }
+        .fp .factor-sent-badge { background: #86efac; color: #14532d; }
+        .fp .factor-title { color: #15803d; }
+        .fp .factor-desc { color: #22c55e; }
+        .fp .factor-count { color: #15803d; }
+        .factor-empty { background: #f9fafb; border: 1px solid #e5e7eb; }
+        .factor-empty .factor-title { color: #9ca3af; font-size: 13px; }
+
+        .empty-note { color: #9ca3af; font-size: 13px; }
+
+        /* Word cloud */
+        .wc-wrap { position: relative; width: 100%; background: #fafafa; border-radius: 8px; overflow: hidden; }
+        .wc-canvas { display: block; width: 100% !important; height: 320px !important; }
+        .wc-legend { display: flex; gap: 14px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+        .wc-leg { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #6b7280; }
+        .wc-leg-dot { width: 10px; height: 10px; border-radius: 50%; }
+    </style>
+</head>
+<body>
+{% set plabel = {'pra_rilis':'Pra rilis','sosialisasi':'Sosialisasi','after_rilis':'After rilis'} %}
+<nav>
+    <div class="nav-left">
+        <span class="nav-logo">Core Tax Sentiment</span>
+        <span class="nav-badge">DistilBERT + BERTopic</span>
+    </div>
+    <div class="nav-right">
+        <a href="/" class="nav-link">Upload</a>
+        <a href="/sentimen" class="nav-link">Sentimen</a>
+        <a href="/bertopic" class="nav-link active">BERTopic</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h1 class="page-title">Hasil BERTopic per Periode</h1>
+    <p class="page-sub">Topik-topik yang mempengaruhi kepuasan pengguna Core Tax</p>
+
+    <div class="period-tabs">
+        <button class="ptab active" data-target="pra_rilis">Pra rilis</button>
+        <button class="ptab" data-target="sosialisasi">Sosialisasi</button>
+        <button class="ptab" data-target="after_rilis">After rilis</button>
+    </div>
+
+    {% for p in ['pra_rilis', 'sosialisasi', 'after_rilis'] %}
+    {% set topics = data.get(p, []) %}
+    {% set s = summary.get(p, {'jumlah_topik': 0, 'sentimen_dominan': '-'}) %}
+    <div class="period-section{% if p == 'pra_rilis' %} active{% endif %}" id="section-{{ p }}">
+
+        <div class="stats-row">
+            <div class="stat-card">
+                <p class="stat-label">Jumlah topik</p>
+                <p class="stat-val">{{ s.jumlah_topik }}</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">Sentimen dominan</p>
+                <p class="stat-val {% if s.sentimen_dominan=='Negatif' %}c-neg{% elif s.sentimen_dominan=='Positif' %}c-pos{% else %}c-net{% endif %}">{{ s.sentimen_dominan }}</p>
+            </div>
+        </div>
+
+        {% if topics %}
+        {% set ns = namespace(max_t=1) %}
+        {% for t in topics %}{% if t.jumlah_tweet > ns.max_t %}{% set ns.max_t = t.jumlah_tweet %}{% endif %}{% endfor %}
+
+        <!-- SECTION 1: Word Cloud -->
+        <div class="card">
+            <div class="card-header-row">
+                <p class="card-title">Word Cloud kata kunci topik</p>
+                <div class="sent-legend">
+                    <span class="leg-item"><span class="leg-dot" style="background:#ef4444"></span>Negatif</span>
+                    <span class="leg-item"><span class="leg-dot" style="background:#f59e0b"></span>Netral</span>
+                    <span class="leg-item"><span class="leg-dot" style="background:#22c55e"></span>Positif</span>
+                </div>
+            </div>
+            <div class="wc-wrap">
+                <canvas class="wc-canvas" id="wc-{{ p }}"
+                    data-words="[{% for t in topics %}{% set kws = t.kata_kunci.split(', ') %}{% for kw in kws %}[&quot;{{ kw | trim }}&quot;,{{ t.jumlah_tweet }},&quot;{% if t.sentimen_dominan == 'Negatif' %}#ef4444{% elif t.sentimen_dominan == 'Positif' %}#22c55e{% else %}#f59e0b{% endif %}&quot;]{% if not loop.last %},{% endif %}{% endfor %}{% if not loop.last %},{% endif %}{% endfor %}]">
+                </canvas>
+            </div>
+        </div>
+
+        <!-- SECTION 2: Kata kunci per topik — grouped by sentiment -->
+        <div class="card">
+            <p class="card-title" style="margin-bottom:16px;">Kata kunci per topik — berdasarkan sentimen di {{ plabel[p] }}</p>
+
+            {% for sent_key, sgh_class, kw_class, sent_label in [
+                ('Negatif', 'sgh-neg', 'kw-neg', 'Negatif'),
+                ('Netral',  'sgh-net', 'kw-net', 'Netral'),
+                ('Positif', 'sgh-pos', 'kw-pos', 'Positif')
+            ] %}
+            {% set sent_topics = [] %}
+            {% for t in topics %}{% if t.sentimen_dominan == sent_key %}{% set _ = sent_topics.append(t) %}{% endif %}{% endfor %}
+            {% if sent_topics %}
+            <div class="sent-group">
+                <div class="sent-group-header {{ sgh_class }}">
+                    Topik {{ sent_label }}
+                    <span class="sgh-count">{{ sent_topics | length }}</span>
+                </div>
+                {% for t in sent_topics %}
+                {% set kws = t.kata_kunci.split(', ') %}
+                {% set tlabel = (kws[0] ~ ' & ' ~ kws[1]) if kws|length >= 2 else kws[0] %}
+                <div class="topic-kw-card">
+                    <div class="tkc-header">
+                        <span class="tkc-num">Topik {{ t.topic_id }}</span>
+                        <span class="tkc-label">{{ tlabel | capitalize }}</span>
+                        <span class="tkc-count">{{ t.jumlah_tweet }} tweet</span>
+                    </div>
+                    <div class="kw-chips">
+                        {% for kw in kws %}
+                        <span class="kw {{ kw_class }}">{{ kw }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        {% else %}
+        <div class="card"><p class="empty-note">Tidak cukup data untuk periode ini.</p></div>
+        {% endif %}
+
+    </div>
+    {% endfor %}
+
+    <!-- SECTION 3: Faktor kepuasan — 3 kotak per sentimen -->
+    <div class="card">
+        <p class="card-title" style="margin-bottom:4px;">Faktor kepuasan pengguna <span style="color:#9ca3af;font-weight:400;">(jawaban rumusan masalah no. 2)</span></p>
+        <p style="font-size:12px;color:#9ca3af;margin-bottom:16px;">Topik paling dominan untuk tiap sentimen dari keseluruhan data</p>
+        <div class="factors-3">
+            {% for sent, fc in [('Negatif','fn'), ('Netral','fo'), ('Positif','fp')] %}
+            {% if top_by_sentimen.get(sent) %}
+            {% set t = top_by_sentimen[sent] %}
+            {% set kws = t.kata_kunci.split(', ') %}
+            {% set ftitle = (kws[0] ~ ' & ' ~ kws[1]) if kws|length >= 2 else kws[0] %}
+            <div class="factor-box {{ fc }}">
+                <span class="factor-sent-badge">{{ sent }}</span>
+                <p class="factor-title">{{ ftitle | capitalize }}</p>
+                <p class="factor-desc">{{ t.kata_kunci }}</p>
+                <p class="factor-count">{{ t.jumlah_tweet }} tweet · {{ plabel.get(t.periode, t.periode) }}</p>
+            </div>
+            {% else %}
+            <div class="factor-box factor-empty">
+                <span class="factor-sent-badge" style="background:#e5e7eb;color:#9ca3af;">{{ sent }}</span>
+                <p class="factor-title">Tidak ada data</p>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+
+<script>
+var rendered = {};
+
+function renderWC(periodeId) {
+    if (rendered[periodeId]) return;
+    var canvas = document.getElementById('wc-' + periodeId);
+    if (!canvas) return;
+    var raw = canvas.getAttribute('data-words');
+    var words;
+    try { words = JSON.parse(raw); } catch(e) { return; }
+    if (!words || words.length === 0) return;
+
+    // Scale font size: min 14, max 56
+    var counts = words.map(function(w) { return w[1]; });
+    var minC = Math.min.apply(null, counts);
+    var maxC = Math.max.apply(null, counts);
+    var list = words.map(function(w) {
+        var sz = maxC === minC ? 28 : 14 + Math.round((w[1] - minC) / (maxC - minC) * 42);
+        return { word: w[0], weight: sz, color: w[2] };
+    });
+
+    // Deduplicate: keep highest weight per word
+    var seen = {};
+    list = list.filter(function(item) {
+        if (seen[item.word] === undefined || seen[item.word] < item.weight) {
+            seen[item.word] = item.weight;
+            return true;
+        }
+        return false;
+    });
+
+    canvas.width  = canvas.offsetWidth  || 840;
+    canvas.height = 320;
+
+    WordCloud(canvas, {
+        list           : list.map(function(i) { return [i.word, i.weight]; }),
+        gridSize       : 8,
+        weightFactor   : 1,
+        fontFamily     : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        fontWeight     : '600',
+        color          : function(word) {
+            var found = list.find(function(i) { return i.word === word; });
+            return found ? found.color : '#6b7280';
+        },
+        rotateRatio    : 0.3,
+        rotationSteps  : 2,
+        backgroundColor: '#fafafa',
+        drawOutOfBound : false,
+        shrinkToFit    : true,
+    });
+    rendered[periodeId] = true;
+}
+
+// Init word cloud for first active tab
+window.addEventListener('load', function() { renderWC('pra_rilis'); });
+
+document.querySelectorAll('.ptab').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.ptab').forEach(function(b) { b.classList.remove('active'); });
+        document.querySelectorAll('.period-section').forEach(function(s) { s.classList.remove('active'); });
+        this.classList.add('active');
+        var target = this.dataset.target;
+        document.getElementById('section-' + target).classList.add('active');
+        renderWC(target);
+    });
+});
+</script>
+</body>
+</html>

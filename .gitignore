@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+coretax.db
+uploads/
+.env
+model_skripsi/imbalanced/skenario_3/model.safetensors

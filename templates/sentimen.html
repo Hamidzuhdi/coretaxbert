@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hasil Sentimen - Core Tax</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #111827; }
+        nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+        .nav-left { display: flex; align-items: center; gap: 10px; }
+        .nav-logo { font-size: 15px; font-weight: 600; }
+        .nav-badge { background: #eff6ff; color: #2563eb; font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 99px; border: 1px solid #bfdbfe; }
+        .nav-right { display: flex; gap: 4px; }
+        .nav-link { font-size: 13px; color: #6b7280; text-decoration: none; padding: 6px 12px; border-radius: 6px; }
+        .nav-link:hover { color: #111827; }
+        .nav-link.active { color: #111827; font-weight: 600; border-bottom: 2px solid #111827; }
+        .container { max-width: 920px; margin: 32px auto; padding: 0 20px 40px; }
+        .page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+        .page-sub { font-size: 13px; color: #6b7280; margin-bottom: 24px; }
+        .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
+        .metric-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px 20px; }
+        .metric-label { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+        .metric-val { font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+        .c-neg { color: #dc2626; }
+        .c-pos { color: #16a34a; }
+        .c-net { color: #d97706; }
+        .metric-sub { font-size: 12px; color: #9ca3af; }
+        .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+        .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 14px; }
+        .card-title { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 16px; }
+        .donut-wrap { position: relative; width: 180px; height: 180px; margin: 0 auto 16px; }
+        .donut-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; pointer-events: none; }
+        .donut-num { font-size: 26px; font-weight: 700; line-height: 1; }
+        .donut-legend { display: flex; flex-direction: column; gap: 8px; }
+        .legend-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .legend-left { display: flex; align-items: center; gap: 8px; color: #374151; }
+        .legend-pct { font-weight: 600; color: #111827; }
+        .periode-chart-wrap { height: 140px; }
+        .periode-legend { display: flex; gap: 16px; margin-top: 12px; justify-content: center; }
+        .pl-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #6b7280; }
+        .pl-line { width: 18px; height: 3px; border-radius: 2px; }
+        /* Server-side filter links */
+        .filter-tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+        .tab-link { padding: 6px 14px; border-radius: 99px; font-size: 13px; font-weight: 500; border: 1px solid #e5e7eb; background: #fff; color: #6b7280; text-decoration: none; transition: all .15s; }
+        .tab-link:hover { border-color: #9ca3af; color: #374151; }
+        .tab-link.active { background: #111827; color: #fff; border-color: #111827; }
+        .filter-count { font-size: 12px; color: #9ca3af; margin-left: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        thead th { text-align: left; padding: 10px 12px; font-size: 12px; font-weight: 500; color: #9ca3af; border-bottom: 1px solid #f3f4f6; }
+        tbody td { padding: 10px 12px; border-bottom: 1px solid #f9fafb; color: #374151; }
+        tbody tr:last-child td { border-bottom: none; }
+        .tweet-text { max-width: 380px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #111827; }
+        .periode-tag { font-size: 12px; color: #9ca3af; white-space: nowrap; }
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 11px; font-weight: 500; }
+        .neg { background: #fef2f2; color: #b91c1c; }
+        .net { background: #fffbeb; color: #b45309; }
+        .pos { background: #f0fdf4; color: #15803d; }
+        .conf { font-size: 12px; color: #6b7280; font-weight: 500; }
+        /* Pagination */
+        .pagination { display: flex; align-items: center; gap: 4px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #f3f4f6; justify-content: center; flex-wrap: wrap; }
+        .pg-link { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 34px; padding: 0 8px; border-radius: 7px; font-size: 13px; font-weight: 500; border: 1px solid #e5e7eb; background: #fff; color: #374151; text-decoration: none; transition: all .12s; }
+        .pg-link:hover { background: #f3f4f6; }
+        .pg-link.active { background: #111827; color: #fff; border-color: #111827; }
+        .pg-link.disabled { opacity: .35; pointer-events: none; }
+        .pg-ellipsis { font-size: 13px; color: #9ca3af; padding: 0 4px; }
+        .action-bar { display: flex; justify-content: flex-end; margin-top: 8px; padding-top: 14px; border-top: 1px solid #f3f4f6; }
+        .btn-dl { display: flex; align-items: center; gap: 6px; padding: 9px 18px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-weight: 500; color: #374151; text-decoration: none; }
+        .btn-dl:hover { background: #f9fafb; }
+    </style>
+</head>
+<body>
+{% set plabel = {'pra_rilis':'Pra rilis','sosialisasi':'Sosialisasi','after_rilis':'After rilis'} %}
+<nav>
+    <div class="nav-left">
+        <span class="nav-logo">Core Tax Sentiment</span>
+        <span class="nav-badge">DistilBERT + BERTopic</span>
+    </div>
+    <div class="nav-right">
+        <a href="/" class="nav-link">Upload</a>
+        <a href="/sentimen" class="nav-link active">Sentimen</a>
+        <a href="/bertopic" class="nav-link">BERTopic</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h1 class="page-title">Hasil Analisis Sentimen</h1>
+    <p class="page-sub">Prediksi menggunakan model DistilBERT Skenario 3 (Accuracy 94%) — akumulasi semua upload</p>
+
+    <div class="metrics">
+        <div class="metric-card">
+            <p class="metric-label">Total tweet</p>
+            <p class="metric-val" id="totalNum">{{ total }}</p>
+            <p class="metric-sub">3 periode waktu</p>
+        </div>
+        <div class="metric-card">
+            <p class="metric-label">Sentimen dominan</p>
+            <p class="metric-val {% if dominant_sentimen=='Negatif' %}c-neg{% elif dominant_sentimen=='Positif' %}c-pos{% else %}c-net{% endif %}">{{ dominant_sentimen }}</p>
+            <p class="metric-sub">{{ plabel.get(dominant_periode, dominant_periode) }}</p>
+        </div>
+        <div class="metric-card">
+            <p class="metric-label">Akurasi model</p>
+            <p class="metric-val">94%</p>
+            <p class="metric-sub">Skenario 3, F1 0.94</p>
+        </div>
+    </div>
+
+    <div class="chart-grid">
+        <div class="card" style="margin-bottom:0;">
+            <p class="card-title">Distribusi sentimen keseluruhan</p>
+            <div class="donut-wrap">
+                <canvas id="donutChart"></canvas>
+                <div class="donut-center">
+                    <div class="donut-num" id="donutNum">{{ total }}</div>
+                </div>
+            </div>
+            <div class="donut-legend" id="donutLegend"></div>
+        </div>
+        <div class="card" style="margin-bottom:0;">
+            <p class="card-title">Sentimen per periode</p>
+            <div class="periode-chart-wrap">
+                <canvas id="periodeChart"></canvas>
+            </div>
+            <div class="periode-legend">
+                <div class="pl-item"><div class="pl-line" style="background:#f87171;"></div> Negatif</div>
+                <div class="pl-item"><div class="pl-line" style="background:#fbbf24;"></div> Netral</div>
+                <div class="pl-item"><div class="pl-line" style="background:#4ade80;"></div> Positif</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <p class="card-title">Detail tweet & prediksi</p>
+
+        <!-- Filter Sentimen -->
+        <div class="filter-tabs" style="margin-bottom:8px;">
+            <span style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-right:4px;">Sentimen</span>
+            <a href="/sentimen?filter=all&periode={{ filter_p }}&page=1"
+               class="tab-link {% if filter_s == 'all' %}active{% endif %}">Semua</a>
+            <a href="/sentimen?filter=Negatif&periode={{ filter_p }}&page=1"
+               class="tab-link {% if filter_s == 'Negatif' %}active{% endif %}">Negatif</a>
+            <a href="/sentimen?filter=Netral&periode={{ filter_p }}&page=1"
+               class="tab-link {% if filter_s == 'Netral' %}active{% endif %}">Netral</a>
+            <a href="/sentimen?filter=Positif&periode={{ filter_p }}&page=1"
+               class="tab-link {% if filter_s == 'Positif' %}active{% endif %}">Positif</a>
+        </div>
+        <!-- Filter Periode -->
+        <div class="filter-tabs">
+            <span style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-right:4px;">Periode</span>
+            <a href="/sentimen?filter={{ filter_s }}&periode=all&page=1"
+               class="tab-link {% if filter_p == 'all' %}active{% endif %}">Semua</a>
+            <a href="/sentimen?filter={{ filter_s }}&periode=pra_rilis&page=1"
+               class="tab-link {% if filter_p == 'pra_rilis' %}active{% endif %}">Pra rilis</a>
+            <a href="/sentimen?filter={{ filter_s }}&periode=sosialisasi&page=1"
+               class="tab-link {% if filter_p == 'sosialisasi' %}active{% endif %}">Sosialisasi</a>
+            <a href="/sentimen?filter={{ filter_s }}&periode=after_rilis&page=1"
+               class="tab-link {% if filter_p == 'after_rilis' %}active{% endif %}">After rilis</a>
+            <span class="filter-count">{{ total_filtered }} tweet</span>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Tweet</th>
+                    <th>Periode</th>
+                    <th>Sentimen</th>
+                    <th>Confidence</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tweets_page %}
+                <tr>
+                    <td class="tweet-text">{{ t.full_text[:100] }}</td>
+                    <td class="periode-tag">{{ plabel.get(t.periode, t.periode) }}</td>
+                    <td>
+                        <span class="badge {% if t.sentimen_prediksi=='Negatif' %}neg{% elif t.sentimen_prediksi=='Positif' %}pos{% else %}net{% endif %}">
+                            {{ t.sentimen_prediksi }}
+                        </span>
+                    </td>
+                    <td class="conf">{{ t.confidence | int }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Pagination -->
+        {% set qf = 'filter=' ~ filter_s ~ '&periode=' ~ filter_p %}
+        <div class="pagination">
+            {% if page > 1 %}
+            <a class="pg-link" href="/sentimen?{{ qf }}&page={{ page - 1 }}">←</a>
+            {% else %}
+            <span class="pg-link disabled">←</span>
+            {% endif %}
+
+            {% if page_range[0] > 1 %}
+            <a class="pg-link" href="/sentimen?{{ qf }}&page=1">1</a>
+            {% if page_range[0] > 2 %}<span class="pg-ellipsis">…</span>{% endif %}
+            {% endif %}
+
+            {% for p in page_range %}
+            <a class="pg-link {% if p == page %}active{% endif %}"
+               href="/sentimen?{{ qf }}&page={{ p }}">{{ p }}</a>
+            {% endfor %}
+
+            {% if page_range[-1] < total_pages %}
+            {% if page_range[-1] < total_pages - 1 %}<span class="pg-ellipsis">…</span>{% endif %}
+            <a class="pg-link" href="/sentimen?{{ qf }}&page={{ total_pages }}">{{ total_pages }}</a>
+            {% endif %}
+
+            {% if page < total_pages %}
+            <a class="pg-link" href="/sentimen?{{ qf }}&page={{ page + 1 }}">→</a>
+            {% else %}
+            <span class="pg-link disabled">→</span>
+            {% endif %}
+        </div>
+
+        <div class="action-bar">
+            <a href="/download/sentimen.csv" class="btn-dl">Download CSV hasil ↓</a>
+        </div>
+    </div>
+</div>
+
+<script type="application/json" id="d-sent">{{ dist_sentimen | tojson }}</script>
+<script type="application/json" id="d-per">{{ dist_periode | tojson }}</script>
+<script type="application/json" id="d-total">{{ total | tojson }}</script>
+<script>
+var distSentimen = JSON.parse(document.getElementById('d-sent').textContent);
+var distPeriode  = JSON.parse(document.getElementById('d-per').textContent);
+var totalTweet   = JSON.parse(document.getElementById('d-total').textContent);
+document.getElementById('donutNum').textContent = totalTweet.toLocaleString('id-ID');
+document.getElementById('totalNum').textContent  = totalTweet.toLocaleString('id-ID');
+
+var COLORS = { Negatif: '#f87171', Netral: '#fbbf24', Positif: '#4ade80' };
+var SENTS  = ['Negatif', 'Netral', 'Positif'];
+
+// Donut chart
+var donutData = SENTS.map(function(s) { return distSentimen[s] || 0; });
+var donutSum  = donutData.reduce(function(a,b) { return a+b; }, 0);
+new Chart(document.getElementById('donutChart'), {
+    type: 'doughnut',
+    data: {
+        labels: SENTS,
+        datasets: [{ data: donutData, backgroundColor: SENTS.map(function(s) { return COLORS[s]; }), borderWidth: 3, borderColor: '#f9fafb' }]
+    },
+    options: {
+        cutout: '70%',
+        plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: function(ctx) { return ' ' + ctx.label + ': ' + ctx.raw + ' tweet'; } } }
+        },
+        responsive: true, maintainAspectRatio: false
+    }
+});
+
+// Donut legend
+var legend = document.getElementById('donutLegend');
+SENTS.forEach(function(s) {
+    var pct = donutSum > 0 ? Math.round((distSentimen[s]||0)/donutSum*100) : 0;
+    legend.innerHTML += '<div class="legend-row"><div class="legend-left"><div class="legend-dot" style="background:' + COLORS[s] + '"></div>' + s + '</div><span class="legend-pct">' + pct + '%</span></div>';
+});
+
+// Stacked bar chart
+var pKeys  = ['pra_rilis','sosialisasi','after_rilis'];
+var pNames = ['Pra rilis','Sosialisasi','After rilis'];
+new Chart(document.getElementById('periodeChart'), {
+    type: 'bar',
+    data: {
+        labels: pNames,
+        datasets: SENTS.map(function(s) {
+            return {
+                label: s,
+                data: pKeys.map(function(p) { return (distPeriode[p] || {})[s] || 0; }),
+                backgroundColor: COLORS[s],
+            };
+        })
+    },
+    options: {
+        indexAxis: 'y',
+        scales: {
+            x: { stacked: true, display: false, grid: { display: false } },
+            y: { stacked: true, grid: { display: false }, ticks: { font: { size: 12 } } }
+        },
+        plugins: { legend: { display: false }, tooltip: { mode: 'index' } },
+        responsive: true, maintainAspectRatio: false
+    }
+});
+</script>
+</body>
+</html>
